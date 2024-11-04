@@ -316,7 +316,7 @@ export default function App() {
   useEffect(() => {
     if (toastData) {
       const timer = setTimeout(
-        () => setToastData({ ...toastData, visible: true }),
+        () => setToastData({ ...toastData, visible: false }),
         4000
       );
       return () => clearTimeout(timer); // Limpa o timer ao desmontar ou reiniciar
