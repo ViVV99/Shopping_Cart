@@ -3,6 +3,7 @@ import { motion } from "framer-motion";
 import "./App.css";
 import { faCartShopping } from "@fortawesome/free-solid-svg-icons/faCartShopping";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 function Header() {
   return (
     <header className="header">
@@ -119,11 +120,11 @@ function Produto({ produto, adicionarAoCarrinho }) {
   );
 }
 
-function CarrinhoModal({ carrinho, removerDoCarrinho }) {
+function CarrinhoModal({ carrinho, removerDoCarrinho, editarCarrinho }) {
   const calcularTotal = () => {
     return carrinho
       .reduce((total, item) => {
-        if (item.promocao) return total + (item.calcularPrecoPromo() * item.qnt);
+        if (item.promocao) return total + item.calcularPrecoPromo() * item.qnt;
         return total + item.preco * item.qnt;
       }, 0)
       .toFixed(2);
@@ -148,42 +149,52 @@ function CarrinhoModal({ carrinho, removerDoCarrinho }) {
         ></button>
       </div>
       <div className="offcanvas-body">
-      <div>
-      <h2>Carrinho de Compras</h2>
-      {carrinho.length === 0 ? (
-        <p>Seu carrinho está vazio.</p>
-      ) : (
-        <>
-          {carrinho.map((item, index) => (
-            <div key={index} className="d-flex align-items-center">
-              <p className="d-flex align-items-center mb-0">
-                {item.nome} - R$ &nbsp;
-                <input className="form-control w-25 m-1" value={item.qnt} />
-                {item.promocao
-                  ? item.calcularPrecoPromo().toFixed(2)
-                  : item.preco.toFixed(2)}
-              </p>
-              <button className="btn btn-outline-danger mt-0" onClick={() => removerDoCarrinho(index)}>Remover</button>
-            </div>
-          ))}
-          <h3>Total: R${calcularTotal()}</h3> {/* Mostra o preço total */}
-        </>
-      )}
-    </div>
+        <div>
+          <h2>Carrinho de Compras</h2>
+          {carrinho.length === 0 ? (
+            <p>Seu carrinho está vazio.</p>
+          ) : (
+            <>
+              {carrinho.map((item, index) => (
+                <div key={index} className="d-flex align-items-center">
+                  <p className="d-flex align-items-center mb-0">
+                    {item.nome} - R$ &nbsp;
+                    <input
+                      className="form-control w-25 m-1"
+                      id={item.id}
+                      onChange={(e) => {
+                        if (!e.target.value) return removerDoCarrinho(index);
+
+                        editarCarrinho(item, e.target.value);
+                      }}
+                      value={item.qnt}
+                    />
+                    {item.promocao
+                      ? item.calcularPrecoPromo().toFixed(2)
+                      : item.preco.toFixed(2)}
+                  </p>
+                  <button
+                    className="btn btn-outline-danger mt-0"
+                    onClick={() => removerDoCarrinho(index)}
+                  >
+                    Remover
+                  </button>
+                </div>
+              ))}
+              <h3>Total: R${calcularTotal()}</h3> {/* Mostra o preço total */}
+            </>
+          )}
+        </div>
       </div>
-      
     </div>
   );
 }
-
 
 function Promocoes() {
   const [promocoes, setPromocoes] = useState([]);
 
   useEffect(() => {
-    setPromocoes([
-      { id: 2, descricao: "10% de desconto em frutas frescas." },
-    ]);
+    setPromocoes([{ id: 2, descricao: "10% de desconto em frutas frescas." }]);
   }, []);
 
   return (
@@ -257,36 +268,72 @@ export default function App() {
 
   const [carrinho, setCarrinho] = useState([]);
 
+  const [toastData, setToastData] = useState({
+    visible: false,
+    message: "",
+  });
+
   const adicionarAoCarrinho = (produto) => {
-    console.log('carrinho', carrinho)
-    if(carrinho.some(item => item.nome === produto.nome)) {
-      const carrinhoAtualizado = carrinho.map(item =>{ 
-        if(item.nome === produto.nome) {
-          const newProduto = {...produto, qnt: item.qnt + 1}
-          return newProduto
+    if (carrinho.some((item) => item.nome === produto.nome)) {
+      const carrinhoAtualizado = carrinho.map((item) => {
+        if (item.nome === produto.nome) {
+          const newProduto = { ...produto, qnt: item.qnt + 1 };
+          return newProduto;
         }
         return item;
-      })
+      });
       setCarrinho([...carrinhoAtualizado]);
     } else {
-      console.log('produto 3', {...produto, qnt: 1})
-      setCarrinho([...carrinho, {...produto, qnt: 1}]);
+      setCarrinho([...carrinho, { ...produto, qnt: 1 }]);
     }
+
+    setToastData({ message: "Item adicionado ao carrinho!", visible: true });
   };
 
   const removerDoCarrinho = (index) => {
     const novoCarrinho = [...carrinho];
     novoCarrinho.splice(index, 1);
     setCarrinho(novoCarrinho);
+    setToastData({ message: "Item removido do carrinho!", visible: true });
   };
+
+  const editarCarrinho = (item, value) => {
+    const numberRegex = /^[0-9]*$/;
+    if (!numberRegex.test(value)) {
+      return;
+    }
+
+    const novoCarrinho = carrinho.map((carrinhoItem) => {
+      if (carrinhoItem.nome === item.nome) {
+        carrinhoItem.qnt = parseInt(value);
+      }
+      return carrinhoItem;
+    });
+    setCarrinho([...novoCarrinho]);
+    setToastData({ message: "Item editado no carrinho!", visible: true });
+  };
+
+  useEffect(() => {
+    if (toastData) {
+      const timer = setTimeout(
+        () => setToastData({ ...toastData, visible: true }),
+        4000
+      );
+      return () => clearTimeout(timer); // Limpa o timer ao desmontar ou reiniciar
+    }
+  }, [carrinho, toastData]); // Roda o efeito a cada alteração no carrinho
 
   return (
     <>
       <Header />
       <Promocoes />
-      <CarrinhoModal carrinho={carrinho} removerDoCarrinho={removerDoCarrinho}/>
+      <CarrinhoModal
+        carrinho={carrinho}
+        removerDoCarrinho={removerDoCarrinho}
+        editarCarrinho={editarCarrinho}
+      />
       <div className="app ">
-      <h2 className="fw-semibold">Produtos</h2>
+        <h2 className="fw-semibold">Produtos</h2>
         <div className="d-flex align-items-center h-100 gap-3">
           {produtos.map((produto, index) => (
             <Produto
@@ -296,8 +343,25 @@ export default function App() {
             />
           ))}
         </div>
-        
       </div>
+      {toastData.visible && (
+        <div
+          className={`toast-container position-fixed top-0 end-0 p-3`}
+          style={{ zIndex: 1050 }}
+        >
+          <div className="toast align-items-center text-bg-primary border-0 show">
+            <div className="d-flex">
+              <div className="toast-body">{toastData.message}</div>
+              <button
+                type="button"
+                className="btn-close btn-close-white me-2 m-auto"
+                aria-label="Close"
+                onClick={() => setToastData({ ...toastData, visible: false })}
+              ></button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
